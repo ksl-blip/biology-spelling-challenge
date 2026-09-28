@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Biology Spelling Challenge</title>
+  <style>
+    :root {
+      --primary: #4361ee;
+      --primary-dark: #3f37c9;
+      --secondary: #4cc9f0;
+      --success: #2ec4b6;
+      --danger: #e63946;
+      --bg: #f8f9fa;
+      --card-bg: #ffffff;
+      --text: #2b2d42;
+      --text-muted: #6c757d;
+      --key-bg: #e9ecef;
+      --key-active: #ced4da;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; touch-action: manipulation; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow-x: hidden; }
+    .app-container { width: 100%; max-width: 480px; min-height: 100vh; display: flex; flex-direction: column; background: var(--card-bg); box-shadow: 0 0 20px rgba(0,0,0,0.05); position: relative; }
+    header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 16px; text-align: center; font-size: 1.1rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    .btn-icon { background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 36px; height: 36px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .screen { display: none; flex-direction: column; flex: 1; padding: 20px; width: 100%; }
+    .screen.active { display: flex; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    input[type="text"] { width: 100%; padding: 12px 16px; border: 2px solid #dee2e6; border-radius: 10px; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+    input[type="text"]:focus { border-color: var(--primary); }
+    .btn { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; width: 100%; text-align: center; box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3); }
+    .btn:active { transform: scale(0.98); }
+    .btn-secondary { background: #6c757d; box-shadow: none; }
+    .status-bar { display: flex; justify-content: space-between; align-items: center; background: #eef2ff; padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; font-weight: 600; font-size: 0.85rem; }
+    .badge { background: var(--primary); color: white; padding: 4px 8px; border-radius: 20px; font-size: 0.8rem; }
+    .part-banner { background: #e0a96d; color: white; padding: 6px; text-align: center; font-weight: bold; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; }
+    .timer-container { width: 100%; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
+    .timer-bar { height: 100%; width: 100%; background: var(--success); transition: width 0.1s linear, background-color 0.3s; }
+    .word-display-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 16px; text-align: center; }
+    .prompt-box { background: #f8f9fa; border: 1px dashed var(--primary); padding: 12px; border-radius: 10px; width: 100%; font-size: 0.95rem; margin-bottom: 12px; color: #333; min-height: 50px; display: flex; align-items: center; justify-content: center; }
+    .speaker-btn { background: #e8f0fe; border: 2px solid var(--primary); color: var(--primary); width: 60px; height: 60px; border-radius: 50%; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-bottom: 12px; }
+    .user-input-box { font-size: 1.4rem; font-weight: bold; letter-spacing: 2px; min-height: 45px; border-bottom: 3px solid var(--primary); width: 100%; display: flex; align-items: center; justify-content: center; color: var(--text); padding: 5px 0; }
+    .feedback-msg { height: 24px; margin-top: 8px; font-weight: bold; font-size: 0.95rem; }
+    .keyboard { display: flex; flex-direction: column; gap: 6px; width: 100%; padding-bottom: 10px; }
+    .kb-row { display: flex; justify-content: center; gap: 4px; width: 100%; }
+    .key { background: var(--key-bg); border: none; border-radius: 6px; padding: 14px 0; font-size: 1.1rem; font-weight: 600; flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); user-select: none; }
+    .key:active { background: var(--key-active); }
+    .key-wide { flex: 1.5; font-size: 0.9rem; background: #d1d5db; }
+    .key-space { flex: 4; }
+    .key-enter { background: var(--primary); color: white; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 100; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 24px; border-radius: 16px; width: 90%; max-width: 400px; }
+    .report-card { background: #f8f9fa; border-radius: 12px; padding: 16px; margin: 16px 0; }
+    .report-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <header>
+    <div class="header-title">Biology Spelling Challenge</div>
+    <button class="btn-icon" id="openSettingsBtn">⚙️</button>
+  </header>
+
+  <!-- START SCREEN -->
+  <div id="startScreen" class="screen active">
+    <h2 style="margin-bottom: 20px; text-align: center; color: var(--primary);">Student Login</h2>
+    <div class="form-group">
+      <label for="studentName">Full Name</label>
+      <input type="text" id="studentName" placeholder="e.g. John Doe">
+    </div>
+    <div class="form-group">
+      <label for="className">Class</label>
+      <input type="text" id="className" placeholder="e.g. 3A">
+    </div>
+    <div class="form-group">
+      <label for="classNo">Class No.</label>
+      <input type="text" id="classNo" placeholder="e.g. 15">
+    </div>
+    <div style="flex:1;"></div>
+    <button class="btn" id="startBtn">Start Challenge</button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="gameScreen" class="screen">
+    <div class="part-banner" id="partBanner">Part 1: Chinese Translation</div>
+    <div class="status-bar">
+      <div>Word: <span id="wordIndex">1</span>/20</div>
+      <div>Score: <span id="currentScore">0</span>/100</div>
+      <div class="badge">Streak: <span id="currentStreak">0</span></div>
+    </div>
+    <div class="timer-container">
+      <div id="timerBar" class="timer-bar"></div>
+    </div>
+    <div class="word-display-area">
+      <div class="prompt-box" id="promptText">Prompt appears here...</div>
+      <button class="speaker-btn" id="speakBtn">🔊</button>
+      <div class="user-input-box" id="userInputDisplay"></div>
+      <div class="feedback-msg" id="feedbackMsg"></div>
+    </div>
+    <div class="keyboard">
+      <div class="kb-row">
+        <button class="key" data-key="Q">Q</button><button class="key" data-key="W">W</button><button class="key" data-key="E">E</button><button class="key" data-key="R">R</button><button class="key" data-key="T">T</button><button class="key" data-key="Y">Y</button><button class="key" data-key="U">U</button><button class="key" data-key="I">I</button><button class="key" data-key="O">O</button><button class="key" data-key="P">P</button>
+      </div>
+      <div class="kb-row">
+        <button class="key" data-key="A">A</button><button class="key" data-key="S">S</button><button class="key" data-key="D">D</button><button class="key" data-key="F">F</button><button class="key" data-key="G">G</button><button class="key" data-key="H">H</button><button class="key" data-key="J">J</button><button class="key" data-key="K">K</button><button class="key" data-key="L">L</button>
+      </div>
+      <div class="kb-row">
+        <button class="key" data-key="Z">Z</button><button class="key" data-key="X">X</button><button class="key" data-key="C">C</button><button class="key" data-key="V">V</button><button class="key" data-key="B">B</button><button class="key" data-key="N">N</button><button class="key" data-key="M">M</button>
+        <button class="key key-wide" id="backspaceBtn">⌫</button>
+      </div>
+      <div class="kb-row">
+        <button class="key key-wide" id="clearBtn">Clear</button>
+        <button class="key key-space" data-key=" ">Space</button>
+        <button class="key key-wide key-enter" id="submitBtn">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div id="resultScreen" class="screen">
+    <h2 style="text-align: center; color: var(--primary); margin-bottom: 10px;" id="resultTitle">Challenge Summary</h2>
+    <div class="report-card">
+      <div class="report-row"><span>Student:</span><strong id="resStudent"></strong></div>
+      <div class="report-row"><span>Class:</span><strong id="resClass"></strong></div>
+      <hr style="margin: 8px 0; border: none; border-top: 1px solid #dee2e6;">
+      <div class="report-row"><span>Current Score:</span><strong id="resScore"></strong></div>
+      <div class="report-row"><span>Total Words Played:</span><strong id="resTotalWords"></strong></div>
+      <div class="report-row"><span>Max Streak:</span><strong id="resMaxStreak"></strong></div>
+      <div class="report-row"><span>Google Sheet Sync:</span><strong id="resSyncStatus">Syncing...</strong></div>
+    </div>
+    <div id="resultMsg" style="text-align: center; margin-bottom: 15px; font-weight: bold; color: #555;"></div>
+    <button class="btn" id="nextRoundBtn">Continue Challenge</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal" id="settingsModal">
+  <div class="modal-content">
+    <h3 style="margin-bottom: 15px;">Google Sheet Setup</h3>
+    <div class="form-group">
+      <label for="scriptUrlInput">Apps Script Web App URL</label>
+      <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+      <button class="btn btn-secondary" id="closeSettingsBtn">Cancel</button>
+      <button class="btn" id="saveSettingsBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 老師：部署 Apps Script 後，把 Web App URL（.../exec）貼在下面，所有學生裝置都會自動使用。
+  // 個別裝置仍可用 ⚙️ 設定覆蓋（存於 localStorage）。
+  const DEFAULT_SCRIPT_URL = 'PASTE_APPS_SCRIPT_URL_HERE';
+
+  const VOCAB_DATA = [
+    { word: "carbohydrates", zh: "碳水化合物", def: "Primary source of energy, including sugars and starches." },
+    { word: "lipids", zh: "脂質", def: "Fats and oils used for long-term energy storage and insulation." },
+    { word: "proteins", zh: "蛋白質", def: "Essential nutrients for growth, repair, and tissue building." },
+    { word: "vitamins", zh: "維生素/維他命", def: "Organic compounds needed in small amounts for health." },
+    { word: "minerals", zh: "礦物質", def: "Inorganic elements required for physiological functions." },
+    { word: "dietary fibre", zh: "膳食纖維", def: "Indigestible plant parts that aid bowel movement." },
+    { word: "glucose", zh: "葡萄糖", def: "Simple sugar that provides immediate cellular energy." },
+    { word: "maltose", zh: "麥芽糖", def: "A disaccharide produced from starch breakdown." },
+    { word: "fructose", zh: "果糖", def: "A simple fruit sugar found in plants." },
+    { word: "starch", zh: "澱粉", def: "Complex carbohydrate stored in plants." },
+    { word: "triglyceride", zh: "甘油三酯", def: "Main constituent of body fat in humans." },
+    { word: "fatty acid", zh: "脂肪酸", def: "Building blocks of lipids." },
+    { word: "night blindness", zh: "夜盲症", def: "Inability to see well in dim light due to Vitamin A deficiency." },
+    { word: "rickets", zh: "佝僂病", def: "Bone disease caused by Vitamin D or Calcium deficiency." },
+    { word: "anaemia", zh: "貧血", def: "Lack of red blood cells caused by Iron deficiency." },
+    { word: "mechanical", zh: "機械式(消化)", def: "Physical breakdown of food into smaller pieces." },
+    { word: "chemical", zh: "化學式(消化)", def: "Enzymatic breakdown of complex food molecules." },
+    { word: "chewing", zh: "咀嚼", def: "Crushing food with teeth in the mouth." },
+    { word: "churning", zh: "攪拌/攪動", def: "Physical mixing of food in the stomach." },
+    { word: "saliva", zh: "唾液/口水", def: "Digestive fluid produced by salivary glands." },
+    { word: "pancreatic", zh: "胰臟的", def: "Relating to the pancreas enzyme secretion." },
+    { word: "intestinal", zh: "腸道的", def: "Relating to the small or large intestine." },
+    { word: "absorption", zh: "吸收", def: "Process of taking nutrients into the bloodstream." },
+    { word: "incisors", zh: "門齒", def: "Chisel-shaped teeth for biting and cutting food." },
+    { word: "canines", zh: "犬齒", def: "Pointed teeth used for tearing food." },
+    { word: "body mass index", zh: "身體質量指數 (BMI)", def: "Value derived from mass and height of an individual." },
+    { word: "pathogens", zh: "病原體", def: "Microorganisms that cause diseases." },
+    { word: "bacteria", zh: "細菌", def: "Single-celled microscopic organisms." },
+    { word: "fungi", zh: "真菌", def: "Organisms like mushrooms and yeasts." },
+    { word: "hygiene", zh: "衛生", def: "Conditions or practices conducive to maintaining health." },
+    { word: "vaccination", zh: "疫苗接種", def: "Treatment to produce immunity against a disease." },
+    { word: "cardiovascular", zh: "心血管的", def: "Relating to the heart and blood vessels." }
+  ];
+
+  let currentQueue = [], currentQuestionIndex = 0, score = 0, currentStreak = 0, maxStreak = 0, totalWordsPlayed = 0;
+  let timer = null, timeLeft = 25, currentTyped = "";
+  let studentData = { name: '', className: '', classNo: '' };
+
+  const startScreen = document.getElementById('startScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const resultScreen = document.getElementById('resultScreen');
+  const settingsModal = document.getElementById('settingsModal');
+  const userInputDisplay = document.getElementById('userInputDisplay');
+  const timerBar = document.getElementById('timerBar');
+  const feedbackMsg = document.getElementById('feedbackMsg');
+  const promptText = document.getElementById('promptText');
+  const partBanner = document.getElementById('partBanner');
+
+  document.getElementById('openSettingsBtn').onclick = () => {
+    const activeUrl = localStorage.getItem('GOOGLE_SCRIPT_URL') || DEFAULT_SCRIPT_URL;
+    document.getElementById('scriptUrlInput').value = activeUrl === 'PASTE_APPS_SCRIPT_URL_HERE' ? '' : activeUrl;
+    settingsModal.classList.add('active');
+  };
+  document.getElementById('closeSettingsBtn').onclick = () => settingsModal.classList.remove('active');
+  document.getElementById('saveSettingsBtn').onclick = () => {
+    localStorage.setItem('GOOGLE_SCRIPT_URL', document.getElementById('scriptUrlInput').value.trim());
+    settingsModal.classList.remove('active');
+    alert('Google Sheet URL Saved!');
+  };
+
+  document.getElementById('startBtn').onclick = () => {
+    const name = document.getElementById('studentName').value.trim();
+    const className = document.getElementById('className').value.trim();
+    const classNo = document.getElementById('classNo').value.trim();
+    if(!name || !className || !classNo) return alert('Please complete all student information.');
+    studentData = { name, className, classNo };
+    startScreen.classList.remove('active');
+    gameScreen.classList.add('active');
+    score = 0; totalWordsPlayed = 0; maxStreak = 0; currentStreak = 0;
+    startNewRound();
+  };
+
+  function speakWord(word) {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  document.getElementById('speakBtn').onclick = () => {
+    if(currentQueue[currentQuestionIndex]) speakWord(currentQueue[currentQuestionIndex].item.word);
+  };
+
+  function startNewRound() {
+    let pool = [...VOCAB_DATA].sort(() => Math.random() - 0.5);
+    currentQueue = [];
+    for(let i=0; i<7; i++) currentQueue.push({ part: 1, item: pool[i] });
+    for(let i=7; i<14; i++) currentQueue.push({ part: 2, item: pool[i] });
+    for(let i=14; i<20; i++) currentQueue.push({ part: 3, item: pool[i] });
+    currentQuestionIndex = 0;
+    loadQuestion();
+  }
+
+  function loadQuestion() {
+    if(currentQuestionIndex >= currentQueue.length || score >= 100) return showSummary();
+    currentTyped = ""; updateDisplay();
+    feedbackMsg.innerText = "";
+    
+    const q = currentQueue[currentQuestionIndex];
+    document.getElementById('wordIndex').innerText = currentQuestionIndex + 1;
+    document.getElementById('currentScore').innerText = score;
+    document.getElementById('currentStreak').innerText = currentStreak;
+
+    if(q.part === 1) {
+      partBanner.innerText = "Part 1: Chinese Translation";
+      partBanner.style.background = "#4361ee";
+      promptText.innerText = "Chinese: " + q.item.zh;
+    } else if(q.part === 2) {
+      partBanner.innerText = "Part 2: Fill in the Blanks";
+      partBanner.style.background = "#3f37c9";
+      promptText.innerText = q.item.def;
+    } else {
+      partBanner.innerText = "Part 3: Pure Dictation";
+      partBanner.style.background = "#2ec4b6";
+      promptText.innerText = "🔒 Text hidden. Listen carefully!";
+    }
+
+    speakWord(q.item.word);
+    startTimer();
+  }
+
+  function startTimer() {
+    clearInterval(timer); timeLeft = 25; updateTimerBar();
+    timer = setInterval(() => {
+      timeLeft -= 0.1; updateTimerBar();
+      if(timeLeft <= 0) { clearInterval(timer); checkAnswer(true); }
+    }, 100);
+  }
+
+  function updateTimerBar() {
+    const pct = (timeLeft / 25) * 100;
+    timerBar.style.width = pct + '%';
+    timerBar.style.backgroundColor = pct < 30 ? 'var(--danger)' : 'var(--success)';
+  }
+
+  function updateDisplay() { userInputDisplay.innerText = currentTyped; }
+
+  document.querySelectorAll('.key[data-key]').forEach(k => {
+    k.onclick = () => { if(currentTyped.length < 30) { currentTyped += k.dataset.key; updateDisplay(); }};
+  });
+  document.getElementById('backspaceBtn').onclick = () => { currentTyped = currentTyped.slice(0, -1); updateDisplay(); };
+  document.getElementById('clearBtn').onclick = () => { currentTyped = ""; updateDisplay(); };
+  document.getElementById('submitBtn').onclick = () => { clearInterval(timer); checkAnswer(false); };
+
+  function checkAnswer(isTimeout) {
+    const q = currentQueue[currentQuestionIndex];
+    const target = q.item.word.toLowerCase().trim();
+    const user = currentTyped.toLowerCase().trim();
+    totalWordsPlayed++;
+
+    if(!isTimeout && user === target) {
+      score += 10; currentStreak++; if(currentStreak > maxStreak) maxStreak = currentStreak;
+      feedbackMsg.style.color = 'var(--success)'; feedbackMsg.innerText = 'Correct! +10 pts 🎉';
+    } else {
+      currentStreak = 0;
+      score = Math.max(0, score - 2);
+      feedbackMsg.style.color = 'var(--danger)';
+      feedbackMsg.innerText = isTimeout ? `Time's up! (-2) (${q.item.word})` : `Incorrect! (-2) (${q.item.word})`;
+    }
+
+    setTimeout(() => {
+      if(score >= 100) return showSummary();
+      currentQuestionIndex++;
+      loadQuestion();
+    }, 1200);
+  }
+
+  function showSummary() {
+    gameScreen.classList.remove('active');
+    resultScreen.classList.add('active');
+    document.getElementById('resStudent').innerText = studentData.name;
+    document.getElementById('resClass').innerText = `${studentData.className} (#${studentData.classNo})`;
+    document.getElementById('resScore').innerText = `${score} / 100`;
+    document.getElementById('resTotalWords').innerText = totalWordsPlayed;
+    document.getElementById('resMaxStreak').innerText = maxStreak;
+
+    const nextBtn = document.getElementById('nextRoundBtn');
+    const resMsg = document.getElementById('resultMsg');
+
+    if(score >= 100) {
+      document.getElementById('resultTitle').innerText = "🏆 Target Reached!";
+      resMsg.innerText = "Congratulations! You reached 100 points!";
+      resMsg.style.color = "var(--success)";
+      nextBtn.innerText = "Play Again From Start";
+      uploadToGoogleSheet();
+    } else {
+      document.getElementById('resultTitle').innerText = "Round Completed";
+      resMsg.innerText = "Keep going to reach 100 points!";
+      resMsg.style.color = "#555";
+      nextBtn.innerText = "Continue Challenge";
+    }
+  }
+
+  function uploadToGoogleSheet() {
+    const url = localStorage.getItem('GOOGLE_SCRIPT_URL') || DEFAULT_SCRIPT_URL;
+    const syncElem = document.getElementById('resSyncStatus');
+    if(!url || url === 'PASTE_APPS_SCRIPT_URL_HERE') { syncElem.innerText = 'No URL set'; syncElem.style.color = 'var(--danger)'; return; }
+    
+    fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        name: studentData.name, className: studentData.className, classNo: studentData.classNo,
+        score, total: totalWordsPlayed, percentage: `${Math.round((score/100)*100)}%`, maxStreak
+      })
+    }).then(() => {
+      syncElem.innerText = 'Uploaded ✓'; syncElem.style.color = 'var(--success)';
+    }).catch(() => {
+      syncElem.innerText = 'Upload Failed'; syncElem.style.color = 'var(--danger)';
+    });
+  }
+
+  document.getElementById('nextRoundBtn').onclick = () => {
+    resultScreen.classList.remove('active');
+    if(score >= 100) {
+      startScreen.classList.add('active');
+    } else {
+      gameScreen.classList.add('active');
+      startNewRound();
+    }
+  };
+</script>
+</body>
+</html>
