@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Biology Spelling Challenge</title>
   <style>
@@ -55,6 +56,20 @@
     .modal-content { background: white; padding: 24px; border-radius: 16px; width: 90%; max-width: 400px; }
     .report-card { background: #f8f9fa; border-radius: 12px; padding: 16px; margin: 16px 0; }
     .report-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+    /* PRACTICE MODE */
+    .or-divider { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 0.85rem; margin: 16px 0; }
+    .or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid #dee2e6; }
+    .btn-practice { background: var(--card-bg); color: var(--success); border: 2px solid var(--success); box-shadow: none; }
+    .practice-hint { text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; }
+    .practice-type-btn { display: flex; flex-direction: column; align-items: flex-start; text-align: left; margin-bottom: 12px; }
+    .practice-type-btn small { font-weight: normal; font-size: 0.85rem; opacity: 0.9; margin-top: 4px; }
+    .practice-bar { display: none; justify-content: space-between; align-items: center; gap: 8px; background: #e6f7f5; padding: 8px 10px; border-radius: 12px; margin-bottom: 12px; font-weight: 600; font-size: 0.85rem; }
+    .practice-bar .practice-actions { display: flex; gap: 6px; }
+    .btn-small { background: var(--card-bg); border: 2px solid var(--primary); color: var(--primary); border-radius: 8px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+    .btn-small.btn-exit { border-color: var(--danger); color: var(--danger); }
+    #gameScreen.practice-mode .practice-bar { display: flex; }
+    #gameScreen.practice-mode .status-bar, #gameScreen.practice-mode .timer-container { display: none; }
+    #gameScreen.practice-mode .feedback-msg { height: auto; min-height: 24px; }
   </style>
 </head>
 <body>
@@ -82,11 +97,32 @@
     </div>
     <div style="flex:1;"></div>
     <button class="btn" id="startBtn">Start Challenge</button>
+    <div class="or-divider">or</div>
+    <button class="btn btn-practice" id="practiceModeBtn">📝 Practice Mode</button>
+    <div class="practice-hint">No login needed · No score · No time limit</div>
+  </div>
+
+  <!-- PRACTICE TYPE SELECT SCREEN -->
+  <div id="practiceSelectScreen" class="screen">
+    <h2 style="margin-bottom: 8px; text-align: center; color: var(--success);">Practice Mode</h2>
+    <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">Choose a question type to practise.<br>No login, no score, no time limit.</p>
+    <button class="btn practice-type-btn" data-practice-part="1" style="background: #4361ee;">Part 1: Chinese Translation<small>See the Chinese meaning, spell the English word.</small></button>
+    <button class="btn practice-type-btn" data-practice-part="2" style="background: #3f37c9;">Part 2: Fill in the Blanks<small>Read the definition, spell the word.</small></button>
+    <button class="btn practice-type-btn" data-practice-part="3" style="background: #2ec4b6;">Part 3: Pure Dictation<small>Listen to the audio only, spell the word.</small></button>
+    <div style="flex:1;"></div>
+    <button class="btn btn-secondary" id="practiceBackBtn">Back to Start</button>
   </div>
 
   <!-- GAME SCREEN -->
   <div id="gameScreen" class="screen">
     <div class="part-banner" id="partBanner">Part 1: Chinese Translation</div>
+    <div class="practice-bar" id="practiceBar">
+      <div>Words practised: <span id="practiceCount">0</span></div>
+      <div class="practice-actions">
+        <button class="btn-small" id="practiceSwitchBtn">Switch Type</button>
+        <button class="btn-small btn-exit" id="practiceExitBtn">Exit</button>
+      </div>
+    </div>
     <div class="status-bar">
       <div>Word: <span id="wordIndex">1</span>/20</div>
       <div>Score: <span id="currentScore">0</span>/100</div>
@@ -195,6 +231,16 @@
   let currentQueue = [], currentQuestionIndex = 0, score = 0, currentStreak = 0, maxStreak = 0, totalWordsPlayed = 0;
   let timer = null, timeLeft = 25, currentTyped = "";
   let studentData = { name: '', className: '', classNo: '' };
+  // Mode: 'challenge' (scored, timed, uploads) or 'practice' (no score/timer/upload/localStorage)
+  let mode = 'challenge';
+  let challengeAdvanceTimeout = null;
+  let practicePart = 1, practiceQueue = [], practiceIndex = 0, practiceCount = 0;
+  let practiceLocked = false, practiceAdvanceTimeout = null;
+  const PRACTICE_PART_INFO = {
+    1: { title: "Part 1: Chinese Translation", color: "#4361ee" },
+    2: { title: "Part 2: Fill in the Blanks", color: "#3f37c9" },
+    3: { title: "Part 3: Pure Dictation", color: "#2ec4b6" }
+  };
 
   const startScreen = document.getElementById('startScreen');
   const gameScreen = document.getElementById('gameScreen');
@@ -205,6 +251,7 @@
   const feedbackMsg = document.getElementById('feedbackMsg');
   const promptText = document.getElementById('promptText');
   const partBanner = document.getElementById('partBanner');
+  const practiceSelectScreen = document.getElementById('practiceSelectScreen');
 
   document.getElementById('openSettingsBtn').onclick = () => {
     const activeUrl = localStorage.getItem('GOOGLE_SCRIPT_URL') || DEFAULT_SCRIPT_URL;
@@ -224,6 +271,7 @@
     const classNo = document.getElementById('classNo').value.trim();
     if(!name || !className || !classNo) return alert('Please complete all student information.');
     studentData = { name, className, classNo };
+    enterChallengeMode();
     startScreen.classList.remove('active');
     gameScreen.classList.add('active');
     score = 0; totalWordsPlayed = 0; maxStreak = 0; currentStreak = 0;
@@ -240,6 +288,10 @@
   }
 
   document.getElementById('speakBtn').onclick = () => {
+    if(mode === 'practice') {
+      if(practiceQueue[practiceIndex]) speakWord(practiceQueue[practiceIndex].word);
+      return;
+    }
     if(currentQueue[currentQuestionIndex]) speakWord(currentQueue[currentQuestionIndex].item.word);
   };
 
@@ -285,7 +337,7 @@
     clearInterval(timer); timeLeft = 25; updateTimerBar();
     timer = setInterval(() => {
       timeLeft -= 0.1; updateTimerBar();
-      if(timeLeft <= 0) { clearInterval(timer); checkAnswer(true); }
+      if(timeLeft <= 0) { clearInterval(timer); if(mode === 'challenge') checkAnswer(true); }
     }, 100);
   }
 
@@ -298,13 +350,17 @@
   function updateDisplay() { userInputDisplay.innerText = currentTyped; }
 
   document.querySelectorAll('.key[data-key]').forEach(k => {
-    k.onclick = () => { if(currentTyped.length < 30) { currentTyped += k.dataset.key; updateDisplay(); }};
+    k.onclick = () => { if(mode === 'practice' && practiceLocked) return; if(currentTyped.length < 30) { currentTyped += k.dataset.key; updateDisplay(); }};
   });
-  document.getElementById('backspaceBtn').onclick = () => { currentTyped = currentTyped.slice(0, -1); updateDisplay(); };
-  document.getElementById('clearBtn').onclick = () => { currentTyped = ""; updateDisplay(); };
-  document.getElementById('submitBtn').onclick = () => { clearInterval(timer); checkAnswer(false); };
+  document.getElementById('backspaceBtn').onclick = () => { if(mode === 'practice' && practiceLocked) return; currentTyped = currentTyped.slice(0, -1); updateDisplay(); };
+  document.getElementById('clearBtn').onclick = () => { if(mode === 'practice' && practiceLocked) return; currentTyped = ""; updateDisplay(); };
+  document.getElementById('submitBtn').onclick = () => {
+    if(mode === 'practice') return checkPracticeAnswer();
+    clearInterval(timer); checkAnswer(false);
+  };
 
   function checkAnswer(isTimeout) {
+    if(mode !== 'challenge') return;
     const q = currentQueue[currentQuestionIndex];
     const target = q.item.word.toLowerCase().trim();
     const user = currentTyped.toLowerCase().trim();
@@ -320,7 +376,9 @@
       feedbackMsg.innerText = isTimeout ? `Time's up! (-2) (${q.item.word})` : `Incorrect! (-2) (${q.item.word})`;
     }
 
-    setTimeout(() => {
+    challengeAdvanceTimeout = setTimeout(() => {
+      challengeAdvanceTimeout = null;
+      if(mode !== 'challenge') return;
       if(score >= 100) return showSummary();
       currentQuestionIndex++;
       loadQuestion();
@@ -382,6 +440,126 @@
       startNewRound();
     }
   };
+
+  /* ================= PRACTICE MODE =================
+     No login, no score/streak, no timer, no Google Sheet upload, no localStorage writes. */
+  function clearChallengeTimers() {
+    clearInterval(timer); timer = null;
+    if(challengeAdvanceTimeout) { clearTimeout(challengeAdvanceTimeout); challengeAdvanceTimeout = null; }
+  }
+  function clearPracticeTimers() {
+    if(practiceAdvanceTimeout) { clearTimeout(practiceAdvanceTimeout); practiceAdvanceTimeout = null; }
+    practiceLocked = false;
+  }
+  function enterChallengeMode() {
+    clearPracticeTimers();
+    mode = 'challenge';
+    gameScreen.classList.remove('practice-mode');
+    feedbackMsg.innerText = "";
+  }
+  function showOnlyScreen(screen) {
+    [startScreen, practiceSelectScreen, gameScreen, resultScreen].forEach(s => s.classList.remove('active'));
+    screen.classList.add('active');
+  }
+  function stopSpeech() { if('speechSynthesis' in window) window.speechSynthesis.cancel(); }
+
+  function openPracticeSelect() {
+    clearChallengeTimers();
+    clearPracticeTimers();
+    stopSpeech();
+    mode = 'practice';
+    currentTyped = ""; updateDisplay(); feedbackMsg.innerText = "";
+    showOnlyScreen(practiceSelectScreen);
+  }
+  function exitPractice() {
+    clearPracticeTimers();
+    stopSpeech();
+    mode = 'challenge';
+    gameScreen.classList.remove('practice-mode');
+    currentTyped = ""; updateDisplay(); feedbackMsg.innerText = "";
+    showOnlyScreen(startScreen);
+  }
+
+  document.getElementById('practiceModeBtn').onclick = openPracticeSelect;
+  document.getElementById('practiceBackBtn').onclick = exitPractice;
+  document.getElementById('practiceExitBtn').onclick = exitPractice;
+  document.getElementById('practiceSwitchBtn').onclick = openPracticeSelect;
+  document.querySelectorAll('[data-practice-part]').forEach(b => {
+    b.onclick = () => startPractice(parseInt(b.dataset.practicePart, 10));
+  });
+
+  function shufflePracticePool(lastWord) {
+    const pool = [...VOCAB_DATA];
+    for(let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    // avoid the same word twice in a row across a reshuffle
+    if(lastWord && pool.length > 1 && pool[0].word === lastWord) { [pool[0], pool[pool.length - 1]] = [pool[pool.length - 1], pool[0]]; }
+    return pool;
+  }
+
+  function startPractice(part) {
+    clearChallengeTimers();
+    clearPracticeTimers();
+    mode = 'practice';
+    practicePart = part;
+    practiceQueue = shufflePracticePool(null);
+    practiceIndex = 0;
+    practiceCount = 0;
+    document.getElementById('practiceCount').innerText = practiceCount;
+    gameScreen.classList.add('practice-mode');
+    showOnlyScreen(gameScreen);
+    loadPracticeQuestion();
+  }
+
+  function loadPracticeQuestion() {
+    if(mode !== 'practice') return;
+    if(practiceIndex >= practiceQueue.length) {
+      const last = practiceQueue.length ? practiceQueue[practiceQueue.length - 1].word : null;
+      practiceQueue = shufflePracticePool(last);
+      practiceIndex = 0;
+    }
+    practiceLocked = false;
+    currentTyped = ""; updateDisplay();
+    feedbackMsg.innerText = "";
+    const item = practiceQueue[practiceIndex];
+    const info = PRACTICE_PART_INFO[practicePart];
+    partBanner.innerText = "Practice · " + info.title;
+    partBanner.style.background = info.color;
+    if(practicePart === 1) promptText.innerText = "Chinese: " + item.zh;
+    else if(practicePart === 2) promptText.innerText = item.def;
+    else promptText.innerText = "🔒 Text hidden. Listen carefully!";
+    speakWord(item.word);
+  }
+
+  function checkPracticeAnswer() {
+    if(mode !== 'practice' || practiceLocked) return;
+    const item = practiceQueue[practiceIndex];
+    if(!item) return;
+    const target = item.word.toLowerCase().trim();
+    const user = currentTyped.toLowerCase().trim();
+    practiceLocked = true;
+    practiceCount++;
+    document.getElementById('practiceCount').innerText = practiceCount;
+    let delay;
+    if(user === target) {
+      feedbackMsg.style.color = 'var(--success)';
+      feedbackMsg.innerText = 'Correct! 🎉';
+      delay = 1000;
+    } else {
+      feedbackMsg.style.color = 'var(--danger)';
+      feedbackMsg.innerText = `Not quite. Correct spelling: ${item.word}`;
+      userInputDisplay.innerText = item.word.toUpperCase();
+      delay = 2500;
+    }
+    practiceAdvanceTimeout = setTimeout(() => {
+      practiceAdvanceTimeout = null;
+      if(mode !== 'practice') return;
+      practiceIndex++;
+      loadPracticeQuestion();
+    }, delay);
+  }
 </script>
 </body>
 </html>
